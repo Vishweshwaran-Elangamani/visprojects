@@ -35,6 +35,8 @@ namespace ReferralManagement.Controllers
             if (limit != null && limit.UsedCount >= limit.LimitCount)
                 return BadRequest($"Referral limit reached ({limit.LimitCount})");
             referral.Status = "Pending";
+            // Set submittedAt as ISO 8601 string for frontend compatibility
+            referral.SubmittedAt = DateTime.UtcNow;
             _context.Referrals.Add(referral);
             if (limit != null)
                 limit.UsedCount++;

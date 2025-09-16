@@ -23,6 +23,7 @@ namespace ReferralManagement.Models
     public User? Employee { get; set; }
         [Required]
     public string? Status { get; set; } // Pending, Verified, Interview Scheduled, Confirmed
-        public DateTime? InterviewDateTime { get; set; }
+    public DateTime? InterviewDateTime { get; set; }
+    public DateTime? SubmittedAt { get; set; } // UTC submission date
     }
 }

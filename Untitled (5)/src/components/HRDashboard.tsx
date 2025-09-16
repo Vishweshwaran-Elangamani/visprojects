@@ -431,7 +431,12 @@ export function HRDashboard({ user, onLogout, onUserUpdate, jobs, setJobs, refer
                             {referral.interviewDateTime && (
                               <p><strong>Interview:</strong> {new Date(referral.interviewDateTime).toLocaleString()}</p>
                             )}
-                            <p><strong>Submitted:</strong> {new Date(referral.submittedAt).toLocaleDateString()}</p>
+                            <p><strong>Submitted:</strong> {
+                              (() => {
+                                const d = new Date(referral.submittedAt);
+                                return isNaN(d.getTime()) ? "N/A" : d.toLocaleDateString();
+                              })()
+                            }</p>
                           </div>
                           <div className="flex gap-2 mt-4">
                             <Button
