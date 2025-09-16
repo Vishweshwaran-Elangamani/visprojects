@@ -115,9 +115,16 @@ export function HRDashboard({ user, onLogout, onUserUpdate, jobs, setJobs, refer
   };
 
   const canProgressTo = (currentStatus: string, targetStatus: string) => {
-    const statusOrder = ["pending", "verified", "interviewed", "confirmed"];
-    const currentIndex = statusOrder.indexOf(currentStatus || "pending");
-    const targetIndex = statusOrder.indexOf(targetStatus);
+    // Match backend status values exactly
+    const statusOrder = ["Pending", "Verified", "Interview Scheduled", "Confirmed", "Rejected"];
+    const currentIndex = statusOrder.indexOf((currentStatus || "Pending"));
+    let targetMap = {
+      verified: "Verified",
+      interviewed: "Interview Scheduled",
+      confirmed: "Confirmed"
+    };
+    const mappedTarget = targetMap[targetStatus.toLowerCase()] || targetStatus;
+    const targetIndex = statusOrder.indexOf(mappedTarget);
     return targetIndex === currentIndex + 1;
   };
 
@@ -171,7 +178,11 @@ export function HRDashboard({ user, onLogout, onUserUpdate, jobs, setJobs, refer
   const handleStatusUpdate = async (referralId: number, newStatus: string) => {
     try {
       setLoading(true);
-      // await api.updateReferralStatus(referralId, newStatus, interviewDateTime);
+      let interviewDT = undefined;
+      if (newStatus === "interviewed" && interviewDateTime) {
+        interviewDT = interviewDateTime;
+      }
+      await api.updateReferralStatus(referralId, newStatus, interviewDT);
       toast.success(`Status updated to ${newStatus}`);
       setSelectedReferral(null);
       setInterviewDateTime("");
@@ -397,7 +408,26 @@ export function HRDashboard({ user, onLogout, onUserUpdate, jobs, setJobs, refer
                           <div className="space-y-2">
                             <p><strong>Company:</strong> {referral.currentCompany}</p>
                             <p><strong>Email:</strong> {referral.candidateEmail}</p>
-                            <p><strong>Resume:</strong> {referral.resume}</p>
+                            <p><strong>Resume:</strong> {referral.resumePdf || referral.resume}</p>
+                            {referral.resumePdf && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  fetch(`http://localhost:5019/api/employee/referral-pdf/${referral.id}`)
+                                    .then(res => res.blob())
+                                    .then(blob => {
+                                      const url = window.URL.createObjectURL(blob);
+                                      const a = document.createElement('a');
+                                      a.href = url;
+                                      a.download = referral.resumePdf || 'resume.pdf';
+                                      document.body.appendChild(a);
+                                      a.click();
+                                      a.remove();
+                                    });
+                                }}
+                              >Download PDF</Button>
+                            )}
                             {referral.interviewDateTime && (
                               <p><strong>Interview:</strong> {new Date(referral.interviewDateTime).toLocaleString()}</p>
                             )}
@@ -451,7 +481,7 @@ export function HRDashboard({ user, onLogout, onUserUpdate, jobs, setJobs, refer
                     <div className="space-y-2">
                       {canProgressTo(selectedReferral.status, "verified") && (
                         <Button
-                          onClick={() => handleStatusUpdate(selectedReferral.id, "verified")}
+                          onClick={() => handleStatusUpdate(selectedReferral.id, "Verified")}
                           className="w-full"
                         >
                           <CheckCircle className="h-4 w-4 mr-2" />
@@ -469,7 +499,7 @@ export function HRDashboard({ user, onLogout, onUserUpdate, jobs, setJobs, refer
                             required
                           />
                           <Button
-                            onClick={() => handleStatusUpdate(selectedReferral.id, "interviewed")}
+                            onClick={() => handleStatusUpdate(selectedReferral.id, "Interview Scheduled")}
                             className="w-full"
                             disabled={!interviewDateTime}
                           >
@@ -480,13 +510,20 @@ export function HRDashboard({ user, onLogout, onUserUpdate, jobs, setJobs, refer
                       )}
                       {canProgressTo(selectedReferral.status, "confirmed") && (
                         <Button
-                          onClick={() => handleStatusUpdate(selectedReferral.id, "confirmed")}
+                          onClick={() => handleStatusUpdate(selectedReferral.id, "Confirmed")}
                           className="w-full"
                         >
                           <CheckCircle className="h-4 w-4 mr-2" />
                           Confirm Candidate
                         </Button>
                       )}
+                      <Button
+                        variant="destructive"
+                        onClick={() => handleStatusUpdate(selectedReferral.id, "Rejected")}
+                        className="w-full"
+                      >
+                        Cancel Application
+                      </Button>
                     </div>
                   </div>
                 </DialogContent>

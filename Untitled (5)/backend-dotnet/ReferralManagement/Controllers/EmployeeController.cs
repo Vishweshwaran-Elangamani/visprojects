@@ -103,6 +103,61 @@ namespace ReferralManagement.Controllers
             return Ok(new { success = true });
         }
 
+        // Upload referral with PDF as BLOB
+        // POST: api/employee/referral-with-pdf
+        [HttpPost("referral-with-pdf")]
+        public async Task<IActionResult> SubmitReferralWithPdf()
+        {
+            var form = await Request.ReadFormAsync();
+            var file = form.Files["resume"];
+            var candidateName = form["candidateName"].ToString();
+            var currentCompany = form["currentCompany"].ToString();
+            var candidateEmail = form["candidateEmail"].ToString();
+            var jobId = int.Parse(form["jobId"]);
+            var employeeId = int.Parse(form["employeeId"]);
+            var status = "Pending";
+            var submittedAt = DateTime.UtcNow;
+            if (string.IsNullOrEmpty(candidateName) || string.IsNullOrEmpty(candidateEmail) || jobId == 0 || employeeId == 0 || file == null)
+                return BadRequest("Missing required fields or file");
+            var limit = await _context.ReferralLimits.FirstOrDefaultAsync(l => l.EmployeeId == employeeId);
+            if (limit != null && limit.UsedCount >= limit.LimitCount)
+                return BadRequest($"Referral limit reached ({limit.LimitCount})");
+            byte[] fileBytes;
+            using (var ms = new MemoryStream())
+            {
+                await file.CopyToAsync(ms);
+                fileBytes = ms.ToArray();
+            }
+            var referral = new Referral
+            {
+                CandidateName = candidateName,
+                CurrentCompany = currentCompany,
+                CandidateEmail = candidateEmail,
+                ResumePdf = file.FileName,
+                ResumeBlob = fileBytes,
+                JobId = jobId,
+                EmployeeId = employeeId,
+                Status = status,
+                InterviewDateTime = null,
+                // Add other fields as needed
+            };
+            _context.Referrals.Add(referral);
+            if (limit != null)
+                limit.UsedCount++;
+            await _context.SaveChangesAsync();
+            return Ok(new { success = true, referralId = referral.Id });
+        }
+
+        // Download PDF by referral ID
+        // GET: api/employee/referral-pdf/{id}
+        [HttpGet("referral-pdf/{id}")]
+        public async Task<IActionResult> DownloadReferralPdf(int id)
+        {
+            var referral = await _context.Referrals.FirstOrDefaultAsync(r => r.Id == id);
+            if (referral == null || referral.ResumeBlob == null)
+                return NotFound("Resume not found");
+            return File(referral.ResumeBlob, "application/pdf", referral.ResumePdf ?? "resume.pdf");
+        }
         // (Removed duplicate endpoints below. Only one version of each endpoint remains above.)
     }
 }

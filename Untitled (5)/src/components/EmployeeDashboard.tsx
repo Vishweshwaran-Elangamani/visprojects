@@ -9,6 +9,7 @@ import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, Sid
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
 import { LogOut, User, Briefcase, FileText, DollarSign, Key, Upload, CheckCircle, Clock, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
+import { api } from "./ui/api";
 
 export function EmployeeDashboard({ user, data, updateData, updateCurrentUser, onLogout }) {
 
@@ -73,41 +74,39 @@ export function EmployeeDashboard({ user, data, updateData, updateCurrentUser, o
     toast.success('Password updated successfully');
   };
 
-  const handleReferralSubmit = (e) => {
+  const handleReferralSubmit = async (e) => {
     e.preventDefault();
-    
     if (userReferrals.length >= userLimit) {
       toast.error(`You have reached your referral limit of ${userLimit}`);
       return;
     }
-
-    const newReferral = {
-      id: Date.now(),
-      candidateName: referralForm.candidateName,
-      currentCompany: referralForm.currentCompany,
-      candidateEmail: referralForm.candidateEmail,
-      resume: referralForm.resume ? referralForm.resume.name : 'resume.pdf',
-      jobId: selectedJob.id,
-      employeeId: user.id,
-      status: 'pending',
-      interviewDateTime: null,
-      submittedAt: new Date().toISOString()
-    };
-
-    const updatedData = {
-      ...data,
-      referrals: [...data.referrals, newReferral]
-    };
-    updateData(updatedData);
-    
-    setReferralForm({
-      candidateName: '',
-      currentCompany: '',
-      candidateEmail: '',
-      resume: null
-    });
-    setSelectedJob(null);
-    toast.success('Referral submitted successfully!');
+    if (!referralForm.resume) {
+      toast.error('Please upload a PDF resume.');
+      return;
+    }
+    const formData = new FormData();
+    formData.append('candidateName', referralForm.candidateName);
+    formData.append('currentCompany', referralForm.currentCompany);
+    formData.append('candidateEmail', referralForm.candidateEmail);
+    formData.append('jobId', selectedJob.id);
+    formData.append('employeeId', user.id);
+    formData.append('resume', referralForm.resume);
+    try {
+      await fetch('http://localhost:5019/api/employee/referral-with-pdf', {
+        method: 'POST',
+        body: formData
+      });
+      setReferralForm({
+        candidateName: '',
+        currentCompany: '',
+        candidateEmail: '',
+        resume: null
+      });
+      setSelectedJob(null);
+      toast.success('Referral submitted successfully!');
+    } catch {
+      toast.error('Failed to submit referral. Please try again.');
+    }
   };
 
   const getStatusColor = (status) => {

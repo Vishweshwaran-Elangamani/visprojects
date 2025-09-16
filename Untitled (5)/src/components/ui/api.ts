@@ -71,6 +71,19 @@ export const api = {
 			method: "DELETE"
 		});
 		if (!res.ok) throw new Error("Failed to delete job");
+			return await res.json();
+		},
+		updateReferralStatus: async (referralId: number, newStatus: string, interviewDateTime?: string) => {
+		const res = await fetch(`${API_BASE}/hr/update-referral-status`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				ReferralId: referralId,
+				NewStatus: newStatus,
+				InterviewDateTime: interviewDateTime || null
+			})
+		});
+		if (!res.ok) throw new Error("Failed to update referral status");
 		return await res.json();
 	}
 };
