@@ -8,9 +8,17 @@ import { Badge } from "./ui/badge";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger } from "./ui/sidebar";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
 import { LogOut, User, Briefcase, FileText, DollarSign, Key, Upload, CheckCircle, Clock, AlertCircle } from "lucide-react";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 
 export function EmployeeDashboard({ user, data, updateData, updateCurrentUser, onLogout }) {
+
+  // Defensive: always use arrays/objects, never undefined
+  const users = (data && data.users) ? data.users : [];
+  const jobs = (data && data.jobs) ? data.jobs : [];
+  const referrals = (data && data.referrals) ? data.referrals : [];
+  const referralLimits = (data && data.referralLimits) ? data.referralLimits : {};
+  const earnings = (data && data.earnings) ? data.earnings : [];
+
   const [activeView, setActiveView] = useState('profile');
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(user.firstLogin);
   const [passwordForm, setPasswordForm] = useState({ current: '', new: '', confirm: '' });
@@ -22,10 +30,10 @@ export function EmployeeDashboard({ user, data, updateData, updateCurrentUser, o
     resume: null
   });
 
-  const userReferrals = data.referrals.filter(r => r.employeeId === user.id);
-  const userLimit = data.referralLimits[user.id] || 5;
-  const userEarnings = data.earnings.filter(e => 
-    data.referrals.find(r => r.id === e.referralId && r.employeeId === user.id)
+  const userReferrals = referrals.filter(r => r.employeeId === user.id);
+  const userLimit = referralLimits[user.id] || 5;
+  const userEarnings = earnings.filter(e => 
+    referrals.find(r => r.id === e.referralId && r.employeeId === user.id)
   );
   const totalEarnings = userEarnings.reduce((sum, e) => sum + e.amount, 0);
 

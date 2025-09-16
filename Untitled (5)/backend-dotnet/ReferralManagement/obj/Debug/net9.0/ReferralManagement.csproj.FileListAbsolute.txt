@@ -509,3 +509,4 @@ C:\Users\name\Downloads\project (3)\project\Untitled (5)\backend-dotnet\Referral
 C:\Users\name\Downloads\project (3)\project\Untitled (5)\backend-dotnet\ReferralManagement\bin\Debug\net9.0\zh-Hans\Microsoft.VisualStudio.TestPlatform.ObjectModel.resources.dll
 C:\Users\name\Downloads\project (3)\project\Untitled (5)\backend-dotnet\ReferralManagement\bin\Debug\net9.0\zh-Hant\Microsoft.TestPlatform.CoreUtilities.resources.dll
 C:\Users\name\Downloads\project (3)\project\Untitled (5)\backend-dotnet\ReferralManagement\bin\Debug\net9.0\zh-Hant\Microsoft.VisualStudio.TestPlatform.ObjectModel.resources.dll
+C:\Users\name\Downloads\project (3)\project\Untitled (5)\backend-dotnet\ReferralManagement\obj\Debug\net9.0\ReferralManagement.sourcelink.json

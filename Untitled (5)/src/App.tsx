@@ -133,17 +133,32 @@ const initialData = {
 };
 
 export default function App() {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    const stored = localStorage.getItem('currentUser');
+    return stored ? JSON.parse(stored) : null;
+  });
   const [jobs, setJobs] = useState<any[]>([]);
   const [referrals, setReferrals] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [referralLimits, setReferralLimits] = useState<{ [key: string]: number }>({});
+  const [earnings, setEarnings] = useState<any[]>([]);
   // Fetch all data on mount
   useEffect(() => {
     refreshJobs();
     refreshReferrals();
     refreshUsers();
     refreshReferralLimits();
+  }, []);
+
+  // Auto-refresh all data every 2 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refreshJobs();
+      refreshReferrals();
+      refreshUsers();
+      refreshReferralLimits();
+    }, 2000);
+    return () => clearInterval(interval);
   }, []);
 
   const refreshJobs = async () => {
@@ -174,17 +189,20 @@ export default function App() {
   // Accepts a user object from Login component
   const handleLogin = (user: User) => {
     setCurrentUser(user);
+    localStorage.setItem('currentUser', JSON.stringify(user));
     toast.success(`Welcome back, ${user.name}!`);
   };
 
   const handleLogout = () => {
     setCurrentUser(null);
+    localStorage.removeItem('currentUser');
     toast.success('Logged out successfully');
   };
 
   const onUserUpdate = (updatedUser: User) => {
     setUsers((prev) => prev.map((u) => u.id === updatedUser.id ? updatedUser : u));
     setCurrentUser(updatedUser);
+    localStorage.setItem('currentUser', JSON.stringify(updatedUser));
   };
 
   if (!currentUser) {
@@ -221,7 +239,13 @@ export default function App() {
       {currentUser.role === 'Employee' && (
         <EmployeeDashboard 
           user={currentUser} 
-          data={{ users, jobs, referrals, referralLimits }}
+          data={{
+            users: users || [],
+            jobs: jobs || [],
+            referrals: referrals || [],
+            referralLimits: referralLimits || [],
+            earnings: earnings || []
+          }}
           updateData={() => {}}
           updateCurrentUser={onUserUpdate}
           onLogout={handleLogout}

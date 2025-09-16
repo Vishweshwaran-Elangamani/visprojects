@@ -106,10 +106,11 @@ namespace ReferralManagement.Controllers
         {
             var job = await _context.Jobs.FindAsync(id);
             if (job == null)
-                return NotFound("Job not found");
+                return NotFound(new { error = "Job not found" });
             _context.Jobs.Remove(job);
             await _context.SaveChangesAsync();
-            return Ok(new { success = true });
+            var jobs = await _context.Jobs.ToListAsync();
+            return Ok(new { success = true, jobs });
         }
 
         // GET: api/hr/referrals
@@ -126,7 +127,7 @@ namespace ReferralManagement.Controllers
         {
             var referral = await _context.Referrals.Include(r => r.Job).FirstOrDefaultAsync(r => r.Id == request.ReferralId);
             if (referral == null)
-                return NotFound("Referral not found");
+                return NotFound(new { error = "Referral not found" });
             // Sequential status logic
             var allowed = new Dictionary<string, string> {
                 { "Pending", "Verified" },
@@ -140,7 +141,7 @@ namespace ReferralManagement.Controllers
                 return Ok(new { success = true });
             }
             if (!allowed.ContainsKey(referral.Status) || allowed[referral.Status] != request.NewStatus)
-                return BadRequest("Invalid status transition");
+                return BadRequest(new { error = "Invalid status transition" });
             referral.Status = request.NewStatus;
             referral.InterviewDateTime = request.InterviewDateTime;
             await _context.SaveChangesAsync();
@@ -197,13 +198,30 @@ namespace ReferralManagement.Controllers
 
         private async Task SendEmailAsync(string to, string subject, string body)
         {
-            var smtp = new SmtpClient("smtp.example.com")
+            // Read SMTP settings from configuration
+            var config = new ConfigurationBuilder()
+                .SetBasePath(AppDomain.CurrentDomain.BaseDirectory)
+                .AddJsonFile("appsettings.json")
+                .Build();
+
+            var smtpHost = config["Smtp:Host"];
+            var smtpPortRaw = config["Smtp:Port"];
+            var smtpUser = config["Smtp:User"];
+            var smtpPass = config["Smtp:Pass"];
+
+            if (string.IsNullOrEmpty(smtpHost) || string.IsNullOrEmpty(smtpPortRaw) || string.IsNullOrEmpty(smtpUser) || string.IsNullOrEmpty(smtpPass))
             {
-                Port = 587,
-                Credentials = new NetworkCredential("your@email.com", "your_email_password"),
+                throw new Exception("SMTP config missing or invalid.");
+            }
+
+            var smtpPort = int.Parse(smtpPortRaw);
+            var smtp = new SmtpClient(smtpHost)
+            {
+                Port = smtpPort,
+                Credentials = new NetworkCredential(smtpUser, smtpPass),
                 EnableSsl = true
             };
-            var mail = new MailMessage("your@email.com", to, subject, body);
+            var mail = new MailMessage(smtpUser, to, subject, body);
             await smtp.SendMailAsync(mail);
         }
     }
