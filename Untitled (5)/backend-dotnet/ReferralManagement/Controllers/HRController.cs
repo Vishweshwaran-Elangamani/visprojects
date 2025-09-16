@@ -140,6 +140,11 @@ namespace ReferralManagement.Controllers
                 await _context.SaveChangesAsync();
                 return Ok(new { success = true });
             }
+            // Prevent cancelling if already confirmed
+            if (request.NewStatus == "Cancelled" && referral.Status == "Confirmed")
+            {
+                return BadRequest(new { error = "Cannot cancel a confirmed referral." });
+            }
             if (!allowed.ContainsKey(referral.Status) || allowed[referral.Status] != request.NewStatus)
                 return BadRequest(new { error = "Invalid status transition" });
             referral.Status = request.NewStatus;

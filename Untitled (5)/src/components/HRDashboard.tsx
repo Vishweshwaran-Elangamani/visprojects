@@ -522,13 +522,15 @@ export function HRDashboard({ user, onLogout, onUserUpdate, jobs, setJobs, refer
                           Confirm Candidate
                         </Button>
                       )}
-                      <Button
-                        variant="destructive"
-                        onClick={() => handleStatusUpdate(selectedReferral.id, "Rejected")}
-                        className="w-full"
-                      >
-                        Cancel Application
-                      </Button>
+                      {selectedReferral.status !== "Confirmed" && (
+                        <Button
+                          variant="destructive"
+                          onClick={() => handleStatusUpdate(selectedReferral.id, "Rejected")}
+                          className="w-full"
+                        >
+                          Cancel Application
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </DialogContent>
