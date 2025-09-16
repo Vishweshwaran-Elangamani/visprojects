@@ -1,0 +1,32 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Untitled (5)", "Untitled (5)", "{376EE291-740E-418C-BB0C-559DE31C8442}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "backend-dotnet", "backend-dotnet", "{2AFF0C13-7905-78DB-2613-037103779ACC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReferralManagement", "Untitled (5)\backend-dotnet\ReferralManagement\ReferralManagement.csproj", "{14F0B469-26EF-2152-9716-EE8CB51EE542}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{14F0B469-26EF-2152-9716-EE8CB51EE542}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{14F0B469-26EF-2152-9716-EE8CB51EE542}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{14F0B469-26EF-2152-9716-EE8CB51EE542}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{14F0B469-26EF-2152-9716-EE8CB51EE542}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{2AFF0C13-7905-78DB-2613-037103779ACC} = {376EE291-740E-418C-BB0C-559DE31C8442}
+		{14F0B469-26EF-2152-9716-EE8CB51EE542} = {2AFF0C13-7905-78DB-2613-037103779ACC}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {D0E921D4-F57B-46C8-98E5-A1C47D5BAB96}
+	EndGlobalSection
+EndGlobal

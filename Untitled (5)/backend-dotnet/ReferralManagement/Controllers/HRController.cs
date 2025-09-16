@@ -1,0 +1,210 @@
+using ReferralManagement.Models;
+using Microsoft.AspNetCore.Mvc;
+using ReferralManagement.Data;
+using Microsoft.EntityFrameworkCore;
+using System.Net.Mail;
+using System.Net;
+
+namespace ReferralManagement.Controllers
+{
+    [ApiController]
+    [Route("api/hr")]
+    public class HRController : ControllerBase
+    {
+        private readonly ReferralDbContext _context;
+        public HRController(ReferralDbContext context)
+        {
+            _context = context;
+        }
+
+        // GET: api/hr/earnings
+        [HttpGet("earnings")]
+        public async Task<IActionResult> GetEarnings()
+        {
+            var earnings = await _context.Earnings.ToListAsync();
+            return Ok(earnings);
+        }
+
+        // GET: api/hr/jobs
+        [HttpGet("jobs")]
+        public async Task<IActionResult> GetJobs()
+        {
+            var jobs = await _context.Jobs.ToListAsync();
+            return Ok(jobs);
+        }
+
+        // GET: api/hr/referral-limits
+        [HttpGet("referral-limits")]
+        public async Task<IActionResult> GetReferralLimits()
+        {
+            var limits = await _context.ReferralLimits.ToListAsync();
+            return Ok(limits);
+        }
+
+        // POST: api/hr/add-job
+        [HttpPost("add-job")]
+        public async Task<IActionResult> AddJob([FromBody] AddJobRequest request)
+        {
+            try
+            {
+                // Log incoming request payload
+                Console.WriteLine("[AddJob] Incoming payload: " + System.Text.Json.JsonSerializer.Serialize(request));
+
+                if (string.IsNullOrWhiteSpace(request.Title) || string.IsNullOrWhiteSpace(request.Description))
+                {
+                    Console.WriteLine("[AddJob] Validation failed: Title or Description is missing.");
+                    return BadRequest(new { error = "Title and Description are required." });
+                }
+
+                var job = new Job
+                {
+                    Title = request.Title ?? string.Empty,
+                    Description = request.Description ?? string.Empty,
+                    ReferralBonus = request.ReferralBonus,
+                    CreatedBy = request.CreatedBy
+                };
+
+                // Log mapped Job entity
+                Console.WriteLine("[AddJob] Mapped Job entity: " + System.Text.Json.JsonSerializer.Serialize(job));
+
+                if (!ModelState.IsValid)
+                {
+                    Console.WriteLine("[AddJob] ModelState errors:");
+                    foreach (var key in ModelState.Keys)
+                    {
+                        var errors = ModelState[key]?.Errors;
+                        if (errors != null && errors.Count > 0)
+                        {
+                            foreach (var err in errors)
+                            {
+                                Console.WriteLine($"[AddJob] {key}: {err.ErrorMessage}");
+                            }
+                        }
+                    }
+                    return BadRequest(ModelState);
+                }
+
+                _context.Jobs.Add(job);
+                await _context.SaveChangesAsync();
+                Console.WriteLine("[AddJob] Job saved successfully.");
+                return Ok(new { success = true });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("[AddJob] Exception: " + ex.ToString());
+                if (ex.InnerException != null)
+                {
+                    Console.WriteLine("[AddJob] InnerException: " + ex.InnerException.ToString());
+                }
+                return StatusCode(500, new { error = "Internal server error", details = ex.ToString() });
+            }
+        }
+
+        // DELETE: api/hr/delete-job/{id}
+        [HttpDelete("delete-job/{id}")]
+        public async Task<IActionResult> DeleteJob(int id)
+        {
+            var job = await _context.Jobs.FindAsync(id);
+            if (job == null)
+                return NotFound("Job not found");
+            _context.Jobs.Remove(job);
+            await _context.SaveChangesAsync();
+            return Ok(new { success = true });
+        }
+
+        // GET: api/hr/referrals
+        [HttpGet("referrals")]
+        public async Task<IActionResult> GetReceivedReferrals()
+        {
+            var referrals = await _context.Referrals.Include(r => r.Job).Include(r => r.Employee).ToListAsync();
+            return Ok(referrals);
+        }
+
+        // POST: api/hr/update-referral-status
+        [HttpPost("update-referral-status")]
+        public async Task<IActionResult> UpdateReferralStatus([FromBody] UpdateReferralStatusRequest request)
+        {
+            var referral = await _context.Referrals.Include(r => r.Job).FirstOrDefaultAsync(r => r.Id == request.ReferralId);
+            if (referral == null)
+                return NotFound("Referral not found");
+            // Sequential status logic
+            var allowed = new Dictionary<string, string> {
+                { "Pending", "Verified" },
+                { "Verified", "Interview Scheduled" },
+                { "Interview Scheduled", "Confirmed" }
+            };
+            if (request.NewStatus == "Rejected")
+            {
+                referral.Status = "Rejected";
+                await _context.SaveChangesAsync();
+                return Ok(new { success = true });
+            }
+            if (!allowed.ContainsKey(referral.Status) || allowed[referral.Status] != request.NewStatus)
+                return BadRequest("Invalid status transition");
+            referral.Status = request.NewStatus;
+            referral.InterviewDateTime = request.InterviewDateTime;
+            await _context.SaveChangesAsync();
+            // If confirmed, send email to candidate
+            if (request.NewStatus == "Confirmed")
+            {
+                await SendEmailAsync(referral.CandidateEmail, "Congratulations – You have been confirmed!",
+                    $"Dear {referral.CandidateName}, You have been confirmed for the role at our company.");
+                // Add earning
+                var earning = new Earning {
+                    ReferralId = referral.Id,
+                    Amount = referral.Job.ReferralBonus,
+                    Date = DateTime.Now
+                };
+                _context.Earnings.Add(earning);
+                await _context.SaveChangesAsync();
+            }
+            return Ok(new { success = true });
+        }
+
+        // POST: api/hr/set-referral-limit
+        [HttpPost("set-referral-limit")]
+        public async Task<IActionResult> SetReferralLimit([FromBody] ReferralLimit limit)
+        {
+            var existing = await _context.ReferralLimits.FindAsync(limit.EmployeeId);
+            if (existing != null && existing.UsedCount > limit.LimitCount)
+                return BadRequest("Referral limit already reached by this employee. Cannot reduce further.");
+            if (existing == null)
+            {
+                _context.ReferralLimits.Add(limit);
+            }
+            else
+            {
+                existing.LimitCount = limit.LimitCount;
+            }
+            await _context.SaveChangesAsync();
+            return Ok(new { success = true });
+        }
+
+        // POST: api/hr/change-password
+        [HttpPost("change-password")]
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == request.UserId);
+            if (user == null)
+                return NotFound("User not found");
+            if (user.Password != request.OldPassword) // Replace with hash check if needed
+                return BadRequest("Old password incorrect");
+            user.Password = request.NewPassword; // Replace with hash if needed
+            user.FirstLogin = false;
+            await _context.SaveChangesAsync();
+            return Ok(new { success = true });
+        }
+
+        private async Task SendEmailAsync(string to, string subject, string body)
+        {
+            var smtp = new SmtpClient("smtp.example.com")
+            {
+                Port = 587,
+                Credentials = new NetworkCredential("your@email.com", "your_email_password"),
+                EnableSsl = true
+            };
+            var mail = new MailMessage("your@email.com", to, subject, body);
+            await smtp.SendMailAsync(mail);
+        }
+    }
+}
