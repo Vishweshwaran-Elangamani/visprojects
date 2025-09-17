@@ -1,7 +1,6 @@
 using ReferralManagement.Models;
 using Microsoft.AspNetCore.Mvc;
 using ReferralManagement.Data;
-using ReferralManagement.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace ReferralManagement.Controllers
@@ -16,6 +15,19 @@ namespace ReferralManagement.Controllers
             _context = context;
         }
 
+
+        // PATCH: api/employee/fix-submitted-date
+        [HttpPatch("fix-submitted-date")]
+        public async Task<IActionResult> FixSubmittedDate()
+        {
+            var referrals = await _context.Referrals.Where(r => r.SubmittedAt == null || r.SubmittedAt.Value.Year == 1970).ToListAsync();
+            foreach (var referral in referrals)
+            {
+                referral.SubmittedAt = DateTime.UtcNow;
+            }
+            await _context.SaveChangesAsync();
+            return Ok(new { updated = referrals.Count });
+        }
 
         // GET: api/employee/jobs
         [HttpGet("jobs")]
@@ -141,7 +153,7 @@ namespace ReferralManagement.Controllers
                 EmployeeId = employeeId,
                 Status = status,
                 InterviewDateTime = null,
-                // Add other fields as needed
+                SubmittedAt = submittedAt
             };
             _context.Referrals.Add(referral);
             if (limit != null)

@@ -172,12 +172,6 @@ export default function App() {
       }
     }, 2000);
     return () => clearInterval(interval);
-  const refreshEarnings = async (employeeId: number) => {
-    try {
-      const data = await api.getEmployeeEarnings(employeeId);
-      setEarnings(data);
-    } catch {}
-  };
   }, []);
 
   const refreshJobs = async () => {
@@ -201,7 +195,16 @@ export default function App() {
   const refreshReferralLimits = async () => {
     try {
       const data = await api.getReferralLimits();
-      setReferralLimits(data);
+      // Transform array to mapping: { [employeeId]: limitCount }
+      const limitsMap = Array.isArray(data)
+        ? data.reduce((acc, item) => {
+            // Use correct property name from backend response
+            const id = item.employeeId1 ?? item.employeeId;
+            acc[id] = item.limitCount;
+            return acc;
+          }, {})
+        : {};
+      setReferralLimits(limitsMap);
     } catch {}
   };
 
@@ -262,7 +265,7 @@ export default function App() {
             users: users || [],
             jobs: jobs || [],
             referrals: referrals || [],
-            referralLimits: referralLimits || [],
+            referralLimits: referralLimits || {},
             earnings: earnings || []
           }}
           updateData={() => {}}

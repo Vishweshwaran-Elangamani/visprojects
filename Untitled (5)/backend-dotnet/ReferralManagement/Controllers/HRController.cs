@@ -1,9 +1,10 @@
-using ReferralManagement.Models;
-using Microsoft.AspNetCore.Mvc;
-using ReferralManagement.Data;
-using Microsoft.EntityFrameworkCore;
-using System.Net.Mail;
-using System.Net;
+
+    using ReferralManagement.Models;
+    using Microsoft.AspNetCore.Mvc;
+    using ReferralManagement.Data;
+    using Microsoft.EntityFrameworkCore;
+    using System.Net.Mail;
+    using System.Net;
 
 namespace ReferralManagement.Controllers
 {
@@ -180,21 +181,43 @@ namespace ReferralManagement.Controllers
 
         // POST: api/hr/set-referral-limit
         [HttpPost("set-referral-limit")]
-        public async Task<IActionResult> SetReferralLimit([FromBody] ReferralLimit limit)
+    public async Task<IActionResult> SetReferralLimit([FromBody] ReferralLimitDto dto)
         {
-            var existing = await _context.ReferralLimits.FindAsync(limit.EmployeeId);
-            if (existing != null && existing.UsedCount > limit.LimitCount)
-                return BadRequest("Referral limit already reached by this employee. Cannot reduce further.");
-            if (existing == null)
+            try
             {
-                _context.ReferralLimits.Add(limit);
+                // Defensive logging for incoming payload
+                Console.WriteLine($"[SetReferralLimit] Incoming payload: EmployeeId={dto.EmployeeId}, EmployeeId1={dto.EmployeeId1}, LimitCount={dto.LimitCount}");
+                var employeeId1 = dto.EmployeeId;
+                var limitCount = dto.LimitCount;
+                var existing = await _context.ReferralLimits.FirstOrDefaultAsync(x => x.EmployeeId1 == employeeId1);
+                if (existing != null && existing.UsedCount > limitCount)
+                {
+                    Console.WriteLine($"[SetReferralLimit] Cannot reduce: UsedCount={existing.UsedCount}, LimitCount={limitCount}");
+                    return BadRequest("Referral limit already reached by this employee. Cannot reduce further.");
+                }
+                if (existing == null)
+                {
+                    var newLimit = new ReferralLimit {
+                        EmployeeId1 = employeeId1,
+                        LimitCount = limitCount,
+                        UsedCount = 0
+                    };
+                    _context.ReferralLimits.Add(newLimit);
+                    Console.WriteLine($"[SetReferralLimit] Creating new limit for EmployeeId1={employeeId1}, LimitCount={limitCount}");
+                }
+                else
+                {
+                    existing.LimitCount = limitCount;
+                    Console.WriteLine($"[SetReferralLimit] Updating limit for EmployeeId1={employeeId1}, NewLimitCount={limitCount}");
+                }
+                await _context.SaveChangesAsync();
+                return Ok(new { success = true });
             }
-            else
+            catch (Exception ex)
             {
-                existing.LimitCount = limit.LimitCount;
+                Console.WriteLine($"[SetReferralLimit] Exception: {ex.Message}\n{ex.StackTrace}");
+                return BadRequest(new { error = "Internal error: " + ex.Message });
             }
-            await _context.SaveChangesAsync();
-            return Ok(new { success = true });
         }
 
         // POST: api/hr/change-password

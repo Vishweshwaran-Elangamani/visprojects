@@ -167,6 +167,7 @@ export function HRDashboard({ user, onLogout, onUserUpdate, jobs, setJobs, refer
       await api.setReferralLimit(limitForm.employeeId, newLimit);
       setLimitForm({ employeeId: "", limit: "" });
       toast.success(`Referral limit set to ${newLimit} for ${employee.name}`);
+      // Always refresh limits after setting
       await refreshReferralLimits();
     } catch {
       toast.error("Failed to set referral limit");
@@ -584,7 +585,8 @@ export function HRDashboard({ user, onLogout, onUserUpdate, jobs, setJobs, refer
                     {users
                       .filter((u: any) => u.role === "Employee")
                       .map((emp: any) => {
-                        const currentLimit = referralLimits[emp.id] || 5;
+                        // Always use backend value, never fallback to 5 if set
+                        const currentLimit = referralLimits[emp.id] ?? 5;
                         const usedCount = referrals.filter((r: any) => r.employeeId === emp.id).length;
                         return (
                           <div

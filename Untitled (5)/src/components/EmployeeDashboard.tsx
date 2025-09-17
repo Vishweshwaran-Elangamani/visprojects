@@ -19,6 +19,12 @@ export function EmployeeDashboard({ user, data, updateData, updateCurrentUser, o
   const referrals = (data && data.referrals) ? data.referrals : [];
   const referralLimits = (data && data.referralLimits) ? data.referralLimits : {};
   const earnings = (data && data.earnings) ? data.earnings : [];
+  // Debug: log referralLimits mapping and user.id on every render
+  React.useEffect(() => {
+    console.log('EmployeeDashboard referralLimits:', referralLimits, 'user.id:', user.id);
+    const userLimit = referralLimits[user.id] ?? 5;
+    console.log('EmployeeDashboard userLimit:', userLimit);
+  }, [referralLimits, user.id]);
 
   const [activeView, setActiveView] = useState('profile');
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(user.firstLogin);
@@ -32,7 +38,10 @@ export function EmployeeDashboard({ user, data, updateData, updateCurrentUser, o
   });
 
   const userReferrals = referrals.filter(r => r.employeeId === user.id);
-  const userLimit = referralLimits[user.id] || 5;
+  // Always use the latest referral limit from backend
+  const userLimit = referralLimits[user.id] ?? 5;
+  // Debug: log the userLimit value
+  console.log('EmployeeDashboard userLimit:', userLimit);
   const userEarnings = earnings.filter(e => {
     const referral = referrals.find(r => r.id === e.referralId && r.employeeId === user.id);
     return referral && referral.status === "Confirmed";
@@ -322,7 +331,11 @@ export function EmployeeDashboard({ user, data, updateData, updateCurrentUser, o
                           {referral.interviewDateTime && (
                             <p><strong>Interview:</strong> {new Date(referral.interviewDateTime).toLocaleString()}</p>
                           )}
-                          <p><strong>Submitted:</strong> {new Date(referral.submittedAt).toLocaleDateString()}</p>
+                          <p><strong>Submitted:</strong> {
+                            referral.submittedAt && new Date(referral.submittedAt).getFullYear() !== 1970
+                              ? new Date(referral.submittedAt).toLocaleDateString()
+                              : 'Not available'
+                          }</p>
                         </div>
                       </CardContent>
                     </Card>
