@@ -33,9 +33,10 @@ export function EmployeeDashboard({ user, data, updateData, updateCurrentUser, o
 
   const userReferrals = referrals.filter(r => r.employeeId === user.id);
   const userLimit = referralLimits[user.id] || 5;
-  const userEarnings = earnings.filter(e => 
-    referrals.find(r => r.id === e.referralId && r.employeeId === user.id)
-  );
+  const userEarnings = earnings.filter(e => {
+    const referral = referrals.find(r => r.id === e.referralId && r.employeeId === user.id);
+    return referral && referral.status === "Confirmed";
+  });
   const totalEarnings = userEarnings.reduce((sum, e) => sum + e.amount, 0);
 
   const handlePasswordChange = (e) => {

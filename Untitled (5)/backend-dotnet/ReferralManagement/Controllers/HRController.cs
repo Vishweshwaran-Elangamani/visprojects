@@ -156,10 +156,21 @@ namespace ReferralManagement.Controllers
                 await SendEmailAsync(referral.CandidateEmail, "Congratulations – You have been confirmed!",
                     $"Dear {referral.CandidateName}, You have been confirmed for the role at our company.");
                 // Add earning
+                decimal bonus = 0;
+                if (referral.Job != null && referral.Job.ReferralBonus > 0)
+                {
+                    bonus = referral.Job.ReferralBonus;
+                }
+                else
+                {
+                    // Optionally log or handle missing bonus
+                    // Console.WriteLine($"Warning: Referral {referral.Id} has no valid ReferralBonus.");
+                }
                 var earning = new Earning {
                     ReferralId = referral.Id,
-                    Amount = referral.Job.ReferralBonus,
-                    Date = DateTime.Now
+                    Amount = bonus,
+                    Date = DateTime.Now,
+                    EmployeeId = referral.EmployeeId
                 };
                 _context.Earnings.Add(earning);
                 await _context.SaveChangesAsync();

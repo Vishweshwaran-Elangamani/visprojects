@@ -85,5 +85,10 @@ export const api = {
 		});
 		if (!res.ok) throw new Error("Failed to update referral status");
 		return await res.json();
-	}
+	},
+	getEmployeeEarnings: async (employeeId: number) => {
+		const res = await fetch(`${API_BASE}/employee/earnings?employeeId=${employeeId}`);
+		if (!res.ok) throw new Error("Failed to fetch employee earnings");
+		return await res.json();
+	},
 };

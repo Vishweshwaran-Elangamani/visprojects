@@ -137,6 +137,13 @@ export default function App() {
     const stored = localStorage.getItem('currentUser');
     return stored ? JSON.parse(stored) : null;
   });
+
+  const refreshEarnings = async (employeeId: number) => {
+    try {
+      const data = await api.getEmployeeEarnings(employeeId);
+      setEarnings(data);
+    } catch {}
+  };
   const [jobs, setJobs] = useState<any[]>([]);
   const [referrals, setReferrals] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
@@ -148,6 +155,9 @@ export default function App() {
     refreshReferrals();
     refreshUsers();
     refreshReferralLimits();
+    if (currentUser && currentUser.role === 'Employee') {
+      refreshEarnings(currentUser.id);
+    }
   }, []);
 
   // Auto-refresh all data every 2 seconds
@@ -157,8 +167,17 @@ export default function App() {
       refreshReferrals();
       refreshUsers();
       refreshReferralLimits();
+      if (currentUser && currentUser.role === 'Employee') {
+        refreshEarnings(currentUser.id);
+      }
     }, 2000);
     return () => clearInterval(interval);
+  const refreshEarnings = async (employeeId: number) => {
+    try {
+      const data = await api.getEmployeeEarnings(employeeId);
+      setEarnings(data);
+    } catch {}
+  };
   }, []);
 
   const refreshJobs = async () => {
