@@ -2,11 +2,32 @@
 const API_BASE = "http://localhost:5019/api"; // Changed port to match backend
 
 export const api = {
-	changePassword: async (userId: number, currentPassword: string, newPassword: string) => {
-		const res = await fetch(`${API_BASE}/employee/change-password`, {
+	// Change password for employee
+	changeEmployeePassword: async (employeeId: number, oldPassword: string, newPassword: string, confirmNewPassword: string) => {
+		const res = await fetch(`${API_BASE}/employee/change-password?employeeId=${employeeId}`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ userId, currentPassword, newPassword })
+			body: JSON.stringify({ OldPassword: oldPassword, NewPassword: newPassword, ConfirmNewPassword: confirmNewPassword })
+		});
+		if (!res.ok) throw new Error("Failed to change password");
+		return await res.json();
+	},
+	// Change password for HR
+	changeHRPassword: async (userId: number, oldPassword: string, newPassword: string, confirmNewPassword: string) => {
+		const res = await fetch(`${API_BASE}/hr/change-password`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ UserId: userId, OldPassword: oldPassword, NewPassword: newPassword, ConfirmNewPassword: confirmNewPassword })
+		});
+		if (!res.ok) throw new Error("Failed to change password");
+		return await res.json();
+	},
+	// Change password for auth
+	changeAuthPassword: async (email: string, oldPassword: string, newPassword: string, confirmNewPassword: string) => {
+		const res = await fetch(`${API_BASE}/auth/change-password`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ Email: email, OldPassword: oldPassword, NewPassword: newPassword, ConfirmNewPassword: confirmNewPassword })
 		});
 		if (!res.ok) throw new Error("Failed to change password");
 		return await res.json();

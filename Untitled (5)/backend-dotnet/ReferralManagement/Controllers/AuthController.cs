@@ -54,16 +54,11 @@ namespace ReferralManagement.Controllers
                 public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest req)
                 {
                     Console.WriteLine("[ChangePassword] Endpoint called");
-            Console.WriteLine($"[ChangePassword] Incoming: Email={req.Email}, NewPassword={req.NewPassword}");
-            if (string.IsNullOrEmpty(req.NewPassword) || req.NewPassword.Length < 6)
+            Console.WriteLine($"[ChangePassword] Incoming: Email={req.Email}, OldPassword={req.OldPassword}, NewPassword={req.NewPassword}, ConfirmNewPassword={req.ConfirmNewPassword}");
+            if (string.IsNullOrEmpty(req.Email) || string.IsNullOrEmpty(req.OldPassword) || string.IsNullOrEmpty(req.NewPassword) || string.IsNullOrEmpty(req.ConfirmNewPassword))
             {
-                Console.WriteLine("[ChangePassword] Password too short");
-                return BadRequest("Password too short");
-            }
-            if (string.IsNullOrEmpty(req.Email))
-            {
-                Console.WriteLine("[ChangePassword] Email is required");
-                return BadRequest("Email is required");
+                Console.WriteLine("[ChangePassword] All password fields are required");
+                return BadRequest("All password fields are required");
             }
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == req.Email);
             if (user == null)
@@ -71,8 +66,21 @@ namespace ReferralManagement.Controllers
                 Console.WriteLine($"[ChangePassword] User not found for email {req.Email}");
                 return NotFound("User not found");
             }
-            Console.WriteLine($"[ChangePassword] Current password in DB: {user.Password}");
-            // Test: also update Name to see if any field is updated
+            if (user.Password != req.OldPassword)
+            {
+                Console.WriteLine("[ChangePassword] Current password is incorrect");
+                return BadRequest("Current password is incorrect");
+            }
+            if (req.NewPassword.Length < 6)
+            {
+                Console.WriteLine("[ChangePassword] New password must be at least 6 characters");
+                return BadRequest("New password must be at least 6 characters");
+            }
+            if (req.NewPassword != req.ConfirmNewPassword)
+            {
+                Console.WriteLine("[ChangePassword] New password and confirm password do not match");
+                return BadRequest("New password and confirm password do not match");
+            }
             user.Password = req.NewPassword;
             user.FirstLogin = false;
             user.Name = user.Name + "_changed";

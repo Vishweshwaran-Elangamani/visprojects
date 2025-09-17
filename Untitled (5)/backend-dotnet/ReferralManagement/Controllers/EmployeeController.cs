@@ -103,25 +103,20 @@ namespace ReferralManagement.Controllers
 
         // POST: api/employee/change-password?employeeId=123
         [HttpPost("change-password")]
-        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request, [FromQuery] int? employeeId)
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request, [FromQuery] int employeeId)
         {
-            // Accept userId from query or body for compatibility
-            int userId = employeeId ?? request.UserId;
-            if (userId == 0)
-                return BadRequest("Missing userId");
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == employeeId);
             if (user == null)
                 return NotFound("User not found");
-            // Accept both OldPassword and currentPassword for compatibility
-            string oldPassword = request.OldPassword ?? request.CurrentPassword;
-            if (string.IsNullOrEmpty(oldPassword))
-                return BadRequest("Missing old password");
-            if (user.Password != oldPassword)
-                return BadRequest("Old password incorrect");
-            string newPassword = request.NewPassword ?? request.CurrentPassword;
-            if (string.IsNullOrEmpty(newPassword) || newPassword.Length < 6)
-                return BadRequest("New password too short");
-            user.Password = newPassword;
+            if (string.IsNullOrEmpty(request.OldPassword) || string.IsNullOrEmpty(request.NewPassword) || string.IsNullOrEmpty(request.ConfirmNewPassword))
+                return BadRequest("All password fields are required");
+            if (user.Password != request.OldPassword)
+                return BadRequest("Current password is incorrect");
+            if (request.NewPassword.Length < 6)
+                return BadRequest("New password must be at least 6 characters");
+            if (request.NewPassword != request.ConfirmNewPassword)
+                return BadRequest("New password and confirm password do not match");
+            user.Password = request.NewPassword;
             user.FirstLogin = false;
             await _context.SaveChangesAsync();
             return Ok(new { success = true });

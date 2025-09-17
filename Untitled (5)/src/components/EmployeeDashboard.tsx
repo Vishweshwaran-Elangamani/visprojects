@@ -15,58 +15,29 @@ import { toast } from "sonner";
 import { api } from "./ui/api";
 
 interface User {
-  id: number;
-  name: string;
-  role: string;
+  id: number | string;
+  name?: string;
+  role?: string;
   project?: string;
   workplace?: string;
   designation?: string;
   email?: string;
-  password?: string;
   firstLogin?: boolean;
 }
 
-interface Job {
-  id: number;
-  title: string;
-  description: string;
-  referralBonus: number;
-}
-
-interface Referral {
-  id: number;
-  employeeId: number;
-  jobId: number;
-  candidateName: string;
-  currentCompany: string;
-  candidateEmail: string;
-  status?: string;
-  interviewDateTime?: string;
-  submittedAt?: string;
-}
-
-interface Earning {
-  id: number;
-  referralId: number;
-  amount: number;
-  date: string;
-}
-
-interface EmployeeDashboardProps {
+export function EmployeeDashboard({
+  user,
+  data,
+  updateData,
+  updateCurrentUser,
+  onLogout
+}: {
   user: User;
-  data: {
-    users: User[];
-    jobs: Job[];
-    referrals: Referral[];
-    referralLimits: { [key: number]: number };
-    earnings: Earning[];
-  };
+  data: any;
   updateData: (data: any) => void;
   updateCurrentUser: (user: User) => void;
   onLogout: () => void;
-}
-
-export function EmployeeDashboard({ user, data, updateData, updateCurrentUser, onLogout }: EmployeeDashboardProps) {
+}) {
 
   // Defensive: always use arrays/objects, never undefined
   const users = (data && data.users) ? data.users : [];
@@ -99,68 +70,128 @@ export function EmployeeDashboard({ user, data, updateData, updateCurrentUser, o
   };
   const [passwordForm, setPasswordForm] = useState({ current: '', new: '', confirm: '' });
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
-  const [referralForm, setReferralForm] = useState<{
-    candidateName: string;
-    currentCompany: string;
-    candidateEmail: string;
-    resume: File | null;
-  }>({
+  const [referralForm, setReferralForm] = useState<ReferralForm>({
     candidateName: '',
     currentCompany: '',
     candidateEmail: '',
     resume: null
   });
 
-  const userReferrals = referrals.filter((r: Referral) => r.employeeId === user.id);
+  interface Referral {
+    id: number | string;
+    employeeId: number | string;
+    candidateName: string;
+    currentCompany: string;
+    candidateEmail: string;
+    jobId: number | string;
+    status: string;
+    interviewDateTime?: string;
+    submittedAt?: string;
+  }
+
+  const userReferrals: Referral[] = referrals.filter((r: Referral) => r.employeeId === user.id);
   // Always use the latest referral limit from backend
   const userLimit = referralLimits[user.id] ?? 5;
   // Debug: log the userLimit value
   console.log('EmployeeDashboard userLimit:', userLimit);
-  const userEarnings = earnings.filter((e: Earning) => {
-    const referral = referrals.find((r: Referral) => r.id === e.referralId && r.employeeId === user.id);
+  interface Referral {
+    id: number | string;
+    employeeId: number | string;
+    candidateName: string;
+    currentCompany: string;
+    candidateEmail: string;
+    jobId: number | string;
+    status: string;
+    interviewDateTime?: string;
+    submittedAt?: string;
+  }
+
+  interface UserEarning {
+    id: number | string;
+    referralId: number | string;
+    amount: number;
+    date: string;
+  }
+
+  const userEarnings: UserEarning[] = earnings.filter((e: UserEarning) => {
+    const referral: Referral | undefined = referrals.find((r: Referral) => r.id === e.referralId && r.employeeId === user.id);
     return referral && referral.status === "Confirmed";
   });
-  const totalEarnings = userEarnings.reduce((sum: number, e: Earning) => sum + e.amount, 0);
+  interface Earning {
+    id: number | string;
+    referralId: number | string;
+    amount: number;
+    date: string;
+  }
 
-  const handlePasswordChange = async (e: React.FormEvent<HTMLFormElement>) => {
+  const totalEarnings: number = userEarnings.reduce((sum: number, e: Earning) => sum + e.amount, 0);
+
+  interface PasswordForm {
+    current: string;
+    new: string;
+    confirm: string;
+  }
+
+  interface HandlePasswordChangeEvent extends React.FormEvent<HTMLFormElement> {}
+
+  const handlePasswordChange = (e: HandlePasswordChangeEvent): void => {
     e.preventDefault();
-    if (user.firstLogin) {
-      if (passwordForm.new !== passwordForm.confirm) {
-        toast.error('Passwords do not match');
-        return;
-      }
-      if (passwordForm.new.length < 6) {
-        toast.error('Password must be at least 6 characters');
-        return;
-      }
-    } else {
-      if (passwordForm.current.length < 1) {
-        toast.error('Current password is required');
-        return;
-      }
-      if (passwordForm.new !== passwordForm.confirm) {
-        toast.error('Passwords do not match');
-        return;
-      }
-      if (passwordForm.new.length < 6) {
-        toast.error('Password must be at least 6 characters');
-        return;
-      }
+    if (passwordForm.new !== passwordForm.confirm) {
+      toast.error('Passwords do not match');
+      return;
     }
-    try {
-      await api.changePassword(user.id, passwordForm.current, passwordForm.new);
+    if (passwordForm.new.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+    api.changeEmployeePassword(
+      Number(user.id),
+      passwordForm.current,
+      passwordForm.new,
+      passwordForm.confirm
+    ).then(() => {
       const updatedUser = { ...user, password: passwordForm.new, firstLogin: false };
       updateCurrentUser(updatedUser);
       setPasswordForm({ current: '', new: '', confirm: '' });
       setIsPasswordDialogOpen(false);
       localStorage.setItem(passwordDialogKey, 'true');
-      toast.success('Password updated successfully');
-    } catch {
-      toast.error('Failed to update password');
-    }
+      toast.success('Password updated successfully!');
+    }).catch((err: { message?: string }) => {
+      toast.error('Failed to update password: ' + (err && err.message ? err.message : ''));
+    });
+    toast.success('Password updated successfully');
   };
 
-  const handleReferralSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  interface ReferralForm {
+    candidateName: string;
+    currentCompany: string;
+    candidateEmail: string;
+    resume: File | null;
+  }
+
+  interface Job {
+    id: number | string;
+    title: string;
+    referralBonus?: number;
+    description?: string;
+  }
+
+  interface User {
+    id: number | string;
+    name?: string;
+    role?: string;
+    project?: string;
+    workplace?: string;
+    designation?: string;
+    email?: string;
+    firstLogin?: boolean;
+  }
+
+  interface ReferralSubmitEvent extends React.FormEvent<HTMLFormElement> {}
+
+  const handleReferralSubmit = async (
+    e: ReferralSubmitEvent
+  ): Promise<void> => {
     e.preventDefault();
     if (userReferrals.length >= userLimit) {
       toast.error(`You have reached your referral limit of ${userLimit}`);
@@ -175,11 +206,11 @@ export function EmployeeDashboard({ user, data, updateData, updateCurrentUser, o
     formData.append('currentCompany', referralForm.currentCompany);
     formData.append('candidateEmail', referralForm.candidateEmail);
     if (!selectedJob) {
-      toast.error('No job selected');
+      toast.error('No job selected for referral.');
       return;
     }
-  formData.append('jobId', String(selectedJob.id));
-  formData.append('employeeId', String(user.id));
+    formData.append('jobId', (selectedJob as Job).id.toString());
+    formData.append('employeeId', user.id.toString());
     formData.append('resume', referralForm.resume);
     try {
       await fetch('http://localhost:5019/api/employee/referral-with-pdf', {
@@ -199,16 +230,24 @@ export function EmployeeDashboard({ user, data, updateData, updateCurrentUser, o
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'verified': return 'bg-blue-100 text-blue-800';
-      case 'interviewed': return 'bg-yellow-100 text-yellow-800';
-      case 'confirmed': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
+  interface StatusColorMap {
+    [key: string]: string;
+  }
+
+  const getStatusColor = (status: string): string => {
+    const statusColors: StatusColorMap = {
+      verified: 'bg-blue-100 text-blue-800',
+      interviewed: 'bg-yellow-100 text-yellow-800',
+      confirmed: 'bg-green-100 text-green-800',
+    };
+    return statusColors[status] || 'bg-gray-100 text-gray-800';
   };
 
-  const getStatusIcon = (status: string) => {
+  interface StatusIconProps {
+    status: string;
+  }
+
+  const getStatusIcon = (status: string): React.JSX.Element => {
     switch (status) {
       case 'verified': return <CheckCircle className="h-4 w-4" />;
       case 'interviewed': return <Clock className="h-4 w-4" />;
@@ -304,20 +343,20 @@ export function EmployeeDashboard({ user, data, updateData, updateCurrentUser, o
             {activeView === 'jobs' && (
               <div className="space-y-6">
                 <div className="grid gap-6">
-                  {data.jobs.map((job: Job) => (
+                    {data.jobs.map((job: Job) => (
                     <Card key={job.id}>
                       <CardHeader>
-                        <CardTitle>{job.title}</CardTitle>
-                        <CardDescription>Referral Bonus: ${job.referralBonus}</CardDescription>
+                      <CardTitle>{job.title}</CardTitle>
+                      <CardDescription>Referral Bonus: ${job.referralBonus}</CardDescription>
                       </CardHeader>
                       <CardContent>
-                        <p className="mb-4">{job.description}</p>
-                        <Button onClick={() => setSelectedJob(job as Job)}>
-                          Refer Candidate
-                        </Button>
+                      <p className="mb-4">{job.description}</p>
+                      <Button onClick={() => setSelectedJob(job)}>
+                        Refer Candidate
+                      </Button>
                       </CardContent>
                     </Card>
-                  ))}
+                    ))}
                   {data.jobs.length === 0 && (
                     <Card>
                       <CardContent className="text-center py-8">
@@ -331,7 +370,7 @@ export function EmployeeDashboard({ user, data, updateData, updateCurrentUser, o
                   <Dialog open={!!selectedJob} onOpenChange={() => setSelectedJob(null)}>
                     <DialogContent>
                       <DialogHeader>
-                        <DialogTitle>Refer Candidate for {(selectedJob as Job).title}</DialogTitle>
+                        <DialogTitle>Refer Candidate for {selectedJob.title}</DialogTitle>
                         <DialogDescription>
                           Referral limit: {userReferrals.length}/{userLimit}
                         </DialogDescription>
@@ -372,10 +411,7 @@ export function EmployeeDashboard({ user, data, updateData, updateCurrentUser, o
                               id="resume"
                               type="file"
                               accept=".pdf"
-                              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                                const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
-                                setReferralForm({...referralForm, resume: file as File | null});
-                              }}
+                              onChange={(e) => setReferralForm({...referralForm, resume: e.target.files ? e.target.files[0] : null})}
                               required
                             />
                             <Upload className="h-4 w-4 text-muted-foreground" />
@@ -393,15 +429,15 @@ export function EmployeeDashboard({ user, data, updateData, updateCurrentUser, o
 
             {activeView === 'status' && (
               <div className="space-y-4">
-                {userReferrals.map((referral: Referral) => {
-                  const job = data.jobs.find((j: Job) => j.id === referral.jobId);
+                {userReferrals.map(referral => {
+                  const job: Job | undefined = (data.jobs as Job[]).find((j: Job) => j.id === referral.jobId);
                   return (
                     <Card key={referral.id}>
                       <CardHeader>
                         <div className="flex items-center justify-between">
                           <CardTitle>{referral.candidateName}</CardTitle>
-                          <Badge className={getStatusColor(referral.status ?? "")}>
-                            {getStatusIcon(referral.status ?? "")}
+                          <Badge className={getStatusColor(referral.status)}>
+                            {getStatusIcon(referral.status)}
                             <span className="ml-1 capitalize">{referral.status || 'Pending'}</span>
                           </Badge>
                         </div>
@@ -447,9 +483,9 @@ export function EmployeeDashboard({ user, data, updateData, updateCurrentUser, o
                 </Card>
 
                 <div className="space-y-4">
-                  {userEarnings.map((earning: Earning) => {
-                    const referral = data.referrals.find((r: Referral) => r.id === earning.referralId);
-                    const job = data.jobs.find((j: Job) => j.id === referral?.jobId);
+                  {userEarnings.map(earning => {
+                    const referral: Referral | undefined = (data.referrals as Referral[]).find((r: Referral) => r.id === earning.referralId);
+                    const job: Job | undefined = (data.jobs as Job[]).find((j: Job) => j.id === referral?.jobId);
                     return (
                       <Card key={earning.id}>
                         <CardContent className="flex items-center justify-between p-4">
@@ -484,18 +520,16 @@ export function EmployeeDashboard({ user, data, updateData, updateCurrentUser, o
                 </CardHeader>
                 <CardContent>
                   <form onSubmit={handlePasswordChange} className="space-y-4">
-                    {!user.firstLogin && (
-                      <div>
-                        <Label htmlFor="current">Current Password</Label>
-                        <Input
-                          id="current"
-                          type="password"
-                          value={passwordForm.current}
-                          onChange={(e) => setPasswordForm({...passwordForm, current: e.target.value})}
-                          required
-                        />
-                      </div>
-                    )}
+                    <div>
+                      <Label htmlFor="current">Current Password</Label>
+                      <Input
+                        id="current"
+                        type="password"
+                        value={passwordForm.current}
+                        onChange={(e) => setPasswordForm({...passwordForm, current: e.target.value})}
+                        required
+                      />
+                    </div>
                     <div>
                       <Label htmlFor="new">New Password</Label>
                       <Input
@@ -535,6 +569,16 @@ export function EmployeeDashboard({ user, data, updateData, updateCurrentUser, o
             </DialogHeader>
             <form onSubmit={handlePasswordChange} className="space-y-4">
               <div>
+                <Label htmlFor="currentPassword">Current Password</Label>
+                <Input
+                  id="currentPassword"
+                  type="password"
+                  value={passwordForm.current}
+                  onChange={(e) => setPasswordForm({...passwordForm, current: e.target.value})}
+                  required
+                />
+              </div>
+              <div>
                 <Label htmlFor="newPassword">New Password</Label>
                 <Input
                   id="newPassword"
@@ -545,7 +589,7 @@ export function EmployeeDashboard({ user, data, updateData, updateCurrentUser, o
                 />
               </div>
               <div>
-                <Label htmlFor="confirmPassword">Confirm Password</Label>
+                <Label htmlFor="confirmPassword">Confirm New Password</Label>
                 <Input
                   id="confirmPassword"
                   type="password"

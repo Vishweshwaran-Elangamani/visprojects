@@ -227,9 +227,15 @@ namespace ReferralManagement.Controllers
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == request.UserId);
             if (user == null)
                 return NotFound("User not found");
-            if (user.Password != request.OldPassword) // Replace with hash check if needed
-                return BadRequest("Old password incorrect");
-            user.Password = request.NewPassword; // Replace with hash if needed
+            if (string.IsNullOrEmpty(request.OldPassword) || string.IsNullOrEmpty(request.NewPassword) || string.IsNullOrEmpty(request.ConfirmNewPassword))
+                return BadRequest("All password fields are required");
+            if (user.Password != request.OldPassword)
+                return BadRequest("Current password is incorrect");
+            if (request.NewPassword.Length < 6)
+                return BadRequest("New password must be at least 6 characters");
+            if (request.NewPassword != request.ConfirmNewPassword)
+                return BadRequest("New password and confirm password do not match");
+            user.Password = request.NewPassword;
             user.FirstLogin = false;
             await _context.SaveChangesAsync();
             return Ok(new { success = true });

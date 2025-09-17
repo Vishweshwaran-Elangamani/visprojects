@@ -131,12 +131,13 @@ export function HRDashboard({ user, onLogout, onUserUpdate, jobs, setJobs, refer
     // Match backend status values exactly
     const statusOrder = ["Pending", "Verified", "Interview Scheduled", "Confirmed", "Rejected"];
     const currentIndex = statusOrder.indexOf((currentStatus || "Pending"));
-    let targetMap: { [key: string]: string } = {
+    const targetMap: Record<string, string> = {
       verified: "Verified",
       interviewed: "Interview Scheduled",
       confirmed: "Confirmed"
     };
-    const mappedTarget = targetMap[targetStatus.toLowerCase()] || targetStatus;
+    const key = targetStatus.toLowerCase();
+    const mappedTarget = targetMap[key] || targetStatus;
     const targetIndex = statusOrder.indexOf(mappedTarget);
     return targetIndex === currentIndex + 1;
   };
@@ -220,15 +221,20 @@ export function HRDashboard({ user, onLogout, onUserUpdate, jobs, setJobs, refer
     }
     try {
       setLoading(true);
-      await api.changePassword(user.id, passwordForm.current, passwordForm.new);
+      await api.changeHRPassword(
+        user.id,
+        passwordForm.current,
+        passwordForm.new,
+        passwordForm.confirm
+      );
       const updatedUser = { ...user, password: passwordForm.new, firstLogin: false };
       onUserUpdate(updatedUser);
       localStorage.setItem('currentUser', JSON.stringify(updatedUser));
       toast.success("Password updated successfully!");
       setPasswordForm({ current: "", new: "", confirm: "" });
       setIsPasswordDialogOpen(false);
-    } catch {
-      toast.error("Failed to update password");
+    } catch (err) {
+      toast.error("Failed to update password: " + ((err as any)?.message || ""));
     } finally {
       setLoading(false);
     }
@@ -636,18 +642,16 @@ export function HRDashboard({ user, onLogout, onUserUpdate, jobs, setJobs, refer
                 </CardHeader>
                 <CardContent>
                   <form onSubmit={handlePasswordChange} className="space-y-4">
-                    {!user.firstLogin && (
-                      <div>
-                        <Label htmlFor="current">Current Password</Label>
-                        <Input
-                          id="current"
-                          type="password"
-                          value={passwordForm.current}
-                          onChange={(e) => setPasswordForm({ ...passwordForm, current: e.target.value })}
-                          required
-                        />
-                      </div>
-                    )}
+                    <div>
+                      <Label htmlFor="current">Current Password</Label>
+                      <Input
+                        id="current"
+                        type="password"
+                        value={passwordForm.current}
+                        onChange={(e) => setPasswordForm({ ...passwordForm, current: e.target.value })}
+                        required
+                      />
+                    </div>
                     <div>
                       <Label htmlFor="new">New Password</Label>
                       <Input
@@ -686,6 +690,16 @@ export function HRDashboard({ user, onLogout, onUserUpdate, jobs, setJobs, refer
           </DialogHeader>
           <form onSubmit={handlePasswordChange} className="space-y-4">
             <div>
+              <Label htmlFor="currentPassword">Current Password</Label>
+              <Input
+                id="currentPassword"
+                type="password"
+                value={passwordForm.current}
+                onChange={(e) => setPasswordForm({ ...passwordForm, current: e.target.value })}
+                required
+              />
+            </div>
+            <div>
               <Label htmlFor="newPassword">New Password</Label>
               <Input
                 id="newPassword"
@@ -696,7 +710,7 @@ export function HRDashboard({ user, onLogout, onUserUpdate, jobs, setJobs, refer
               />
             </div>
             <div>
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <Label htmlFor="confirmPassword">Confirm New Password</Label>
               <Input
                 id="confirmPassword"
                 type="password"
