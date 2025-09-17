@@ -2,6 +2,15 @@
 const API_BASE = "http://localhost:5019/api"; // Changed port to match backend
 
 export const api = {
+	changePassword: async (userId: number, currentPassword: string, newPassword: string) => {
+		const res = await fetch(`${API_BASE}/employee/change-password`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ userId, currentPassword, newPassword })
+		});
+		if (!res.ok) throw new Error("Failed to change password");
+		return await res.json();
+	},
 		getJobs: async () => {
 			const res = await fetch(`${API_BASE}/hr/jobs`);
 			if (!res.ok) throw new Error("Failed to fetch jobs");

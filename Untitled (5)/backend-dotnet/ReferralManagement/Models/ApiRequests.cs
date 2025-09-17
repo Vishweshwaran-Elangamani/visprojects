@@ -22,9 +22,11 @@ namespace ReferralManagement.Models
     public class ChangePasswordRequest
     {
         public int UserId { get; set; } // Used by HRController
-    public string? Email { get; set; } // Used by AuthController
-    public string? OldPassword { get; set; }
-    public string? NewPassword { get; set; }
+        public string? Email { get; set; } // Used by AuthController
+        public string? OldPassword { get; set; }
+        public string? NewPassword { get; set; }
+        // For frontend compatibility
+        public string? CurrentPassword { get; set; }
     }
 
     public class UpdateReferralStatusRequest

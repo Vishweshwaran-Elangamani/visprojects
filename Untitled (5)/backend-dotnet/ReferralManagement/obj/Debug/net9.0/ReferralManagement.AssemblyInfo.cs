@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ReferralManagement")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+57c3f62605d00da208df669cb4e0ca57bf9f4e1c")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+14990d51a058e89fb2b6424f992a9085fa274585")]
 [assembly: System.Reflection.AssemblyProductAttribute("ReferralManagement")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ReferralManagement")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

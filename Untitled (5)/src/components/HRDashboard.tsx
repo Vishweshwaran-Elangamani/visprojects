@@ -62,7 +62,20 @@ export type HRDashboardProps = {
 
 export function HRDashboard({ user, onLogout, onUserUpdate, jobs, setJobs, referrals, setReferrals, users, setUsers, referralLimits, setReferralLimits, refreshJobs, refreshReferrals, refreshUsers, refreshReferralLimits }: HRDashboardProps) {
   const [activeView, setActiveView] = useState("profile");
-  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(user.firstLogin);
+  // Show password dialog only on initial login, never on refresh, persist across tabs
+  const passwordDialogKey = `passwordDialogShown_${user.id}`;
+  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(() => {
+    if (user.firstLogin && !localStorage.getItem(passwordDialogKey)) {
+      localStorage.setItem(passwordDialogKey, 'true');
+      return true;
+    }
+    return false;
+  });
+  // Reset dialog shown flag on logout
+  const handleLogoutWrapper = () => {
+    localStorage.removeItem(passwordDialogKey);
+    onLogout();
+  };
   const [passwordForm, setPasswordForm] = useState({ current: "", new: "", confirm: "" });
   const [jobForm, setJobForm] = useState({ title: "", description: "", referralBonus: "" });
   const [selectedReferral, setSelectedReferral] = useState<any>(null);
@@ -118,7 +131,7 @@ export function HRDashboard({ user, onLogout, onUserUpdate, jobs, setJobs, refer
     // Match backend status values exactly
     const statusOrder = ["Pending", "Verified", "Interview Scheduled", "Confirmed", "Rejected"];
     const currentIndex = statusOrder.indexOf((currentStatus || "Pending"));
-    let targetMap = {
+    let targetMap: { [key: string]: string } = {
       verified: "Verified",
       interviewed: "Interview Scheduled",
       confirmed: "Confirmed"
@@ -207,7 +220,7 @@ export function HRDashboard({ user, onLogout, onUserUpdate, jobs, setJobs, refer
     }
     try {
       setLoading(true);
-      // await api.changePassword(user.id, passwordForm.current, passwordForm.new);
+      await api.changePassword(user.id, passwordForm.current, passwordForm.new);
       const updatedUser = { ...user, password: passwordForm.new, firstLogin: false };
       onUserUpdate(updatedUser);
       localStorage.setItem('currentUser', JSON.stringify(updatedUser));
@@ -251,7 +264,7 @@ export function HRDashboard({ user, onLogout, onUserUpdate, jobs, setJobs, refer
             </SidebarMenu>
           </SidebarContent>
           <SidebarFooter className="p-4">
-            <Button variant="outline" onClick={onLogout} className="w-full">
+            <Button variant="outline" onClick={handleLogoutWrapper} className="w-full">
               <LogOut className="h-4 w-4 mr-2" />
               Logout
             </Button>

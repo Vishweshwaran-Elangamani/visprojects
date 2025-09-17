@@ -103,15 +103,25 @@ namespace ReferralManagement.Controllers
 
         // POST: api/employee/change-password?employeeId=123
         [HttpPost("change-password")]
-        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request, [FromQuery] int employeeId)
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request, [FromQuery] int? employeeId)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == employeeId);
+            // Accept userId from query or body for compatibility
+            int userId = employeeId ?? request.UserId;
+            if (userId == 0)
+                return BadRequest("Missing userId");
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
             if (user == null)
                 return NotFound("User not found");
-            // For demo: assume passwords are stored as plain text or hashed
-            if (user.Password != request.OldPassword) // Replace with hash check if needed
+            // Accept both OldPassword and currentPassword for compatibility
+            string oldPassword = request.OldPassword ?? request.CurrentPassword;
+            if (string.IsNullOrEmpty(oldPassword))
+                return BadRequest("Missing old password");
+            if (user.Password != oldPassword)
                 return BadRequest("Old password incorrect");
-            user.Password = request.NewPassword; // Replace with hash if needed
+            string newPassword = request.NewPassword ?? request.CurrentPassword;
+            if (string.IsNullOrEmpty(newPassword) || newPassword.Length < 6)
+                return BadRequest("New password too short");
+            user.Password = newPassword;
             user.FirstLogin = false;
             await _context.SaveChangesAsync();
             return Ok(new { success = true });

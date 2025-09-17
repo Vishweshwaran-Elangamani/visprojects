@@ -1,4 +1,7 @@
 import React, { useState, useEffect } from 'react';
+
+// Track dialog shown per user for this session (global, not reset on refresh)
+const passwordDialogSession: { [userId: number]: boolean } = {};
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -11,7 +14,59 @@ import { LogOut, User, Briefcase, FileText, DollarSign, Key, Upload, CheckCircle
 import { toast } from "sonner";
 import { api } from "./ui/api";
 
-export function EmployeeDashboard({ user, data, updateData, updateCurrentUser, onLogout }) {
+interface User {
+  id: number;
+  name: string;
+  role: string;
+  project?: string;
+  workplace?: string;
+  designation?: string;
+  email?: string;
+  password?: string;
+  firstLogin?: boolean;
+}
+
+interface Job {
+  id: number;
+  title: string;
+  description: string;
+  referralBonus: number;
+}
+
+interface Referral {
+  id: number;
+  employeeId: number;
+  jobId: number;
+  candidateName: string;
+  currentCompany: string;
+  candidateEmail: string;
+  status?: string;
+  interviewDateTime?: string;
+  submittedAt?: string;
+}
+
+interface Earning {
+  id: number;
+  referralId: number;
+  amount: number;
+  date: string;
+}
+
+interface EmployeeDashboardProps {
+  user: User;
+  data: {
+    users: User[];
+    jobs: Job[];
+    referrals: Referral[];
+    referralLimits: { [key: number]: number };
+    earnings: Earning[];
+  };
+  updateData: (data: any) => void;
+  updateCurrentUser: (user: User) => void;
+  onLogout: () => void;
+}
+
+export function EmployeeDashboard({ user, data, updateData, updateCurrentUser, onLogout }: EmployeeDashboardProps) {
 
   // Defensive: always use arrays/objects, never undefined
   const users = (data && data.users) ? data.users : [];
@@ -27,32 +82,49 @@ export function EmployeeDashboard({ user, data, updateData, updateCurrentUser, o
   }, [referralLimits, user.id]);
 
   const [activeView, setActiveView] = useState('profile');
-  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(user.firstLogin);
+  // Only show password dialog once after login, not on every refresh
+  // Show password dialog only on initial login, never on refresh, persist across tabs
+  const passwordDialogKey = `passwordDialogShown_${user.id}`;
+  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(() => {
+    if (user.firstLogin && !localStorage.getItem(passwordDialogKey)) {
+      localStorage.setItem(passwordDialogKey, 'true');
+      return true;
+    }
+    return false;
+  });
+  // Reset dialog shown flag on logout
+  const handleLogoutWrapper = () => {
+    localStorage.removeItem(passwordDialogKey);
+    onLogout();
+  };
   const [passwordForm, setPasswordForm] = useState({ current: '', new: '', confirm: '' });
-  const [selectedJob, setSelectedJob] = useState(null);
-  const [referralForm, setReferralForm] = useState({
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const [referralForm, setReferralForm] = useState<{
+    candidateName: string;
+    currentCompany: string;
+    candidateEmail: string;
+    resume: File | null;
+  }>({
     candidateName: '',
     currentCompany: '',
     candidateEmail: '',
     resume: null
   });
 
-  const userReferrals = referrals.filter(r => r.employeeId === user.id);
+  const userReferrals = referrals.filter((r: Referral) => r.employeeId === user.id);
   // Always use the latest referral limit from backend
   const userLimit = referralLimits[user.id] ?? 5;
   // Debug: log the userLimit value
   console.log('EmployeeDashboard userLimit:', userLimit);
-  const userEarnings = earnings.filter(e => {
-    const referral = referrals.find(r => r.id === e.referralId && r.employeeId === user.id);
+  const userEarnings = earnings.filter((e: Earning) => {
+    const referral = referrals.find((r: Referral) => r.id === e.referralId && r.employeeId === user.id);
     return referral && referral.status === "Confirmed";
   });
-  const totalEarnings = userEarnings.reduce((sum, e) => sum + e.amount, 0);
+  const totalEarnings = userEarnings.reduce((sum: number, e: Earning) => sum + e.amount, 0);
 
-  const handlePasswordChange = (e) => {
+  const handlePasswordChange = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    
     if (user.firstLogin) {
-      // First login - just set new password
       if (passwordForm.new !== passwordForm.confirm) {
         toast.error('Passwords do not match');
         return;
@@ -62,9 +134,8 @@ export function EmployeeDashboard({ user, data, updateData, updateCurrentUser, o
         return;
       }
     } else {
-      // Regular password change
-      if (passwordForm.current !== user.password) {
-        toast.error('Current password is incorrect');
+      if (passwordForm.current.length < 1) {
+        toast.error('Current password is required');
         return;
       }
       if (passwordForm.new !== passwordForm.confirm) {
@@ -76,15 +147,20 @@ export function EmployeeDashboard({ user, data, updateData, updateCurrentUser, o
         return;
       }
     }
-
-    const updatedUser = { ...user, password: passwordForm.new, firstLogin: false };
-    updateCurrentUser(updatedUser);
-    setPasswordForm({ current: '', new: '', confirm: '' });
-    setIsPasswordDialogOpen(false);
-    toast.success('Password updated successfully');
+    try {
+      await api.changePassword(user.id, passwordForm.current, passwordForm.new);
+      const updatedUser = { ...user, password: passwordForm.new, firstLogin: false };
+      updateCurrentUser(updatedUser);
+      setPasswordForm({ current: '', new: '', confirm: '' });
+      setIsPasswordDialogOpen(false);
+      localStorage.setItem(passwordDialogKey, 'true');
+      toast.success('Password updated successfully');
+    } catch {
+      toast.error('Failed to update password');
+    }
   };
 
-  const handleReferralSubmit = async (e) => {
+  const handleReferralSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (userReferrals.length >= userLimit) {
       toast.error(`You have reached your referral limit of ${userLimit}`);
@@ -98,8 +174,12 @@ export function EmployeeDashboard({ user, data, updateData, updateCurrentUser, o
     formData.append('candidateName', referralForm.candidateName);
     formData.append('currentCompany', referralForm.currentCompany);
     formData.append('candidateEmail', referralForm.candidateEmail);
-    formData.append('jobId', selectedJob.id);
-    formData.append('employeeId', user.id);
+    if (!selectedJob) {
+      toast.error('No job selected');
+      return;
+    }
+  formData.append('jobId', String(selectedJob.id));
+  formData.append('employeeId', String(user.id));
     formData.append('resume', referralForm.resume);
     try {
       await fetch('http://localhost:5019/api/employee/referral-with-pdf', {
@@ -119,7 +199,7 @@ export function EmployeeDashboard({ user, data, updateData, updateCurrentUser, o
     }
   };
 
-  const getStatusColor = (status) => {
+  const getStatusColor = (status: string) => {
     switch (status) {
       case 'verified': return 'bg-blue-100 text-blue-800';
       case 'interviewed': return 'bg-yellow-100 text-yellow-800';
@@ -128,7 +208,7 @@ export function EmployeeDashboard({ user, data, updateData, updateCurrentUser, o
     }
   };
 
-  const getStatusIcon = (status) => {
+  const getStatusIcon = (status: string) => {
     switch (status) {
       case 'verified': return <CheckCircle className="h-4 w-4" />;
       case 'interviewed': return <Clock className="h-4 w-4" />;
@@ -224,7 +304,7 @@ export function EmployeeDashboard({ user, data, updateData, updateCurrentUser, o
             {activeView === 'jobs' && (
               <div className="space-y-6">
                 <div className="grid gap-6">
-                  {data.jobs.map(job => (
+                  {data.jobs.map((job: Job) => (
                     <Card key={job.id}>
                       <CardHeader>
                         <CardTitle>{job.title}</CardTitle>
@@ -232,7 +312,7 @@ export function EmployeeDashboard({ user, data, updateData, updateCurrentUser, o
                       </CardHeader>
                       <CardContent>
                         <p className="mb-4">{job.description}</p>
-                        <Button onClick={() => setSelectedJob(job)}>
+                        <Button onClick={() => setSelectedJob(job as Job)}>
                           Refer Candidate
                         </Button>
                       </CardContent>
@@ -251,7 +331,7 @@ export function EmployeeDashboard({ user, data, updateData, updateCurrentUser, o
                   <Dialog open={!!selectedJob} onOpenChange={() => setSelectedJob(null)}>
                     <DialogContent>
                       <DialogHeader>
-                        <DialogTitle>Refer Candidate for {selectedJob.title}</DialogTitle>
+                        <DialogTitle>Refer Candidate for {(selectedJob as Job).title}</DialogTitle>
                         <DialogDescription>
                           Referral limit: {userReferrals.length}/{userLimit}
                         </DialogDescription>
@@ -292,7 +372,10 @@ export function EmployeeDashboard({ user, data, updateData, updateCurrentUser, o
                               id="resume"
                               type="file"
                               accept=".pdf"
-                              onChange={(e) => setReferralForm({...referralForm, resume: e.target.files[0]})}
+                              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                const file = e.target.files && e.target.files[0] ? e.target.files[0] : null;
+                                setReferralForm({...referralForm, resume: file as File | null});
+                              }}
                               required
                             />
                             <Upload className="h-4 w-4 text-muted-foreground" />
@@ -310,15 +393,15 @@ export function EmployeeDashboard({ user, data, updateData, updateCurrentUser, o
 
             {activeView === 'status' && (
               <div className="space-y-4">
-                {userReferrals.map(referral => {
-                  const job = data.jobs.find(j => j.id === referral.jobId);
+                {userReferrals.map((referral: Referral) => {
+                  const job = data.jobs.find((j: Job) => j.id === referral.jobId);
                   return (
                     <Card key={referral.id}>
                       <CardHeader>
                         <div className="flex items-center justify-between">
                           <CardTitle>{referral.candidateName}</CardTitle>
-                          <Badge className={getStatusColor(referral.status)}>
-                            {getStatusIcon(referral.status)}
+                          <Badge className={getStatusColor(referral.status ?? "")}>
+                            {getStatusIcon(referral.status ?? "")}
                             <span className="ml-1 capitalize">{referral.status || 'Pending'}</span>
                           </Badge>
                         </div>
@@ -364,9 +447,9 @@ export function EmployeeDashboard({ user, data, updateData, updateCurrentUser, o
                 </Card>
 
                 <div className="space-y-4">
-                  {userEarnings.map(earning => {
-                    const referral = data.referrals.find(r => r.id === earning.referralId);
-                    const job = data.jobs.find(j => j.id === referral?.jobId);
+                  {userEarnings.map((earning: Earning) => {
+                    const referral = data.referrals.find((r: Referral) => r.id === earning.referralId);
+                    const job = data.jobs.find((j: Job) => j.id === referral?.jobId);
                     return (
                       <Card key={earning.id}>
                         <CardContent className="flex items-center justify-between p-4">
